@@ -89,16 +89,16 @@ export interface EventEnvelope {
 }
 
 /**
- * Stored signed event. The semantic payload is encrypted and not persisted in cleartext.
+ * Stored signed event. The semantic payload is encrypted — no cleartext here.
  */
 export interface SignedEvent {
   readonly envelope: EventEnvelope;
-  readonly payload?: EventPayload;
   readonly signature: Signature;
 }
 
 /**
- * In-memory signed event with decrypted payload attached.
+ * In-memory decrypted event: a SignedEvent with the plaintext payload attached.
+ * This type lives at the domain layer — the log never produces or consumes it.
  */
 export interface DecryptedEvent extends SignedEvent {
   readonly payload: EventPayload;
