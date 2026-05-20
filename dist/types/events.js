@@ -1,6 +1,6 @@
 import { ValidationError } from './errors.js';
 /**
- * Empty hash constant retained for inner compatibility payloads.
+ * Empty hash constant retained for compatibility (e.g., legacy tests).
  */
 export const EMPTY_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 export const EVENT_ENVELOPE_VERSION = '0.2';
