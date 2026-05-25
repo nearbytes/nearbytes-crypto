@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "prepare": "tsc"
+    "postinstall": "tsc"
   },
   "license": "MIT",
   "engines": {
