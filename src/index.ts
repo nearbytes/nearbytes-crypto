@@ -12,11 +12,10 @@ export * from './crypto/errors.js';
 export { computeHash } from './crypto/hash.js';
 export { computeMerkleHash } from './crypto/merkleHash.js';
 export type { MerkleHashOptions } from './crypto/merkleHash.js';
-export { createHashWorkerPool } from './crypto/hashWorkerPool.js';
-export type {
-  HashWorkerPool,
-  HashWorkerPoolOptions,
-  StreamingHasher,
-} from './crypto/hashWorkerPool.js';
+export {
+  acquireSha256Stream,
+  _closeSha256StreamPoolForTesting,
+} from './crypto/sha256Stream.js';
+export type { Sha256Stream } from './crypto/sha256Stream.js';
 export { generateSymmetricKey, encryptSym, decryptSym } from './crypto/symmetric.js';
 export { deriveKeys, signPR, verifyPU, deriveSymKey } from './crypto/asymmetric.js';
