@@ -46,11 +46,17 @@ export function createSignature(bytes: Uint8Array): Signature {
 
 /**
  * Inner semantic event type discriminator.
+ *
+ * File-system primitives (CREATE_FILE / MKDIR / DELETE / RENAME) are pure
+ * syntax: each event carries one full path and no implicit dependencies.
+ * The materializer is the sole site of cascade semantics — see
+ * `application/file-events-v0.4.md` for the wire schema and replay rules.
  */
 export enum EventType {
   CREATE_FILE = 'CREATE_FILE',
-  DELETE_FILE = 'DELETE_FILE',
-  RENAME_FILE = 'RENAME_FILE',
+  MKDIR = 'MKDIR',
+  DELETE = 'DELETE',
+  RENAME = 'RENAME',
   DECLARE_IDENTITY = 'DECLARE_IDENTITY',
   CHAT_MESSAGE = 'CHAT_MESSAGE',
   APP_RECORD = 'APP_RECORD',
@@ -65,41 +71,62 @@ export type ContentDescriptor =
   | { readonly protocol: 'nb.content.manifest.v1'; readonly manifestHash: Hash };
 
 /**
- * Inner payload for CREATE_FILE events (file-events-v0.3).
+ * Inner payload for CREATE_FILE events (file-events-v0.4).
+ * `path` is a `/`-separated string; the protocol does not validate it
+ * structurally beyond rejecting the empty string and leading/trailing `/`
+ * — the materializer (`nearbytes-files`) enforces the namespace rules.
  */
 export interface CreateFilePayload {
   readonly type: EventType.CREATE_FILE;
-  /** Filename within the volume */
-  readonly filename: string;
-  /** Content descriptor identifying the ciphertext block(s) */
+  /** Full path within the volume (may contain `/`). */
+  readonly path: string;
+  /** Content descriptor identifying the ciphertext block(s). */
   readonly content: ContentDescriptor;
-  /** Data encryption key wrapped with the volume key */
+  /** Data encryption key wrapped with the volume key. */
   readonly wrappedKey: EncryptedData;
-  /** Creation timestamp (ms since epoch) */
+  /** Creation timestamp (ms since epoch). */
   readonly createdAt: number;
   readonly mimeType?: string;
 }
 
 /**
- * Inner payload for DELETE_FILE events (file-events-v0.3).
+ * Inner payload for MKDIR events (file-events-v0.4).
+ * Creates an *explicit* directory entry at `path`. The materializer
+ * cascades by creating every missing ancestor as a directory too;
+ * conflicts (an ancestor already a file) reject the whole MKDIR.
  * blockRefs on the outer envelope SHOULD be empty.
  */
-export interface DeleteFilePayload {
-  readonly type: EventType.DELETE_FILE;
-  readonly filename: string;
-  /** Deletion timestamp (ms since epoch) */
+export interface MkdirPayload {
+  readonly type: EventType.MKDIR;
+  readonly path: string;
+  readonly createdAt: number;
+}
+
+/**
+ * Inner payload for DELETE events (file-events-v0.4).
+ * Single primitive for both files and directories. When `path` is a
+ * directory, the materializer cascades to every descendant (file or dir);
+ * confirmation / empty-vs-non-empty is a CLI concern.
+ * blockRefs on the outer envelope SHOULD be empty.
+ */
+export interface DeletePayload {
+  readonly type: EventType.DELETE;
+  readonly path: string;
   readonly deletedAt: number;
 }
 
 /**
- * Inner payload for RENAME_FILE events (file-events-v0.3).
+ * Inner payload for RENAME events (file-events-v0.4).
+ * Single primitive for files and directories. When `fromPath` is a
+ * directory, the materializer prefix-swaps every descendant from
+ * `fromPath/` to `toPath/`. Conflicts (target exists as different kind,
+ * or as a non-empty dir of same kind) reject the rename.
  * blockRefs on the outer envelope SHOULD be empty.
  */
-export interface RenameFilePayload {
-  readonly type: EventType.RENAME_FILE;
-  readonly filename: string;
-  readonly toFilename: string;
-  /** Rename timestamp (ms since epoch) */
+export interface RenamePayload {
+  readonly type: EventType.RENAME;
+  readonly fromPath: string;
+  readonly toPath: string;
   readonly renamedAt: number;
 }
 
@@ -139,8 +166,9 @@ export interface AppRecordPayload {
  */
 export type EventPayload =
   | CreateFilePayload
-  | DeleteFilePayload
-  | RenameFilePayload
+  | MkdirPayload
+  | DeletePayload
+  | RenamePayload
   | DeclareIdentityPayload
   | ChatMessagePayload
   | AppRecordPayload;
